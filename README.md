@@ -1,6 +1,7 @@
 # hello-kube
 k8 canary deployment example using the traefik ingress controller.
 
+
 ## Pre-requisites
 
 1. brew install kubernetes-helm
@@ -40,14 +41,14 @@ Use the traefik helm chart to deploy traefik to your cluster
 In dev / test, enable the traefik ingress controller dashboard to view routing
 ```
 
-helm install --namespace kube-system --set dashboard.enabled=true,dashboard.domain=traefik-ui.acs stable/traefik
+helm install --name traefik-hello-kube --namespace kube-system --set dashboard.enabled=true,dashboard.domain=traefik-ui.acs stable/traefik
 ```
 
 In prod, just install the traefik ingress controller but don't enable the dashboard
 
 ```
 
-helm install --namespace kube-system stable/traefik
+helm install stable/traefik --name traefik-hello-kube --namespace kube-system
 ```
 
 Get the local resource name of the traefik helm chart that was installed
@@ -59,7 +60,7 @@ helm list
 Now view the status of traefik on the k8 cluster using the local resource name
 
 ```
-helm status newbie-jaguar
+helm status traefik-hello-kube
 ```
 
 You can also view the service and pods deployed via
@@ -86,6 +87,13 @@ docker build -t schnieds/hello-kube:canary .
 docker push schnieds/hello-kube:canary
 ```
 
+Deploy ingress and ensure it is running
+
+```
+kubectl apply -f ingress.yaml
+kubectl get ingress
+```
+
 Deploy service and ensure it is running
 
 ```
@@ -102,10 +110,10 @@ kubectl get pods
 kubectl describe pod <podname from get pods output>
 ```
 
-Get the external IP for the service load balancer
+Get the external IP for the traefik ingress controller
 
 ```
-kubectl describe svc service-hello-kube
+kubectl describe service traefik-hello-kube -n kube-system | grep Ingress
 <copy the LoadBalancer Ingress: value to get the external IP>
 ```
 
@@ -114,7 +122,7 @@ Execute a bunch of HTTP GET requests to view requests splitting between canary a
 
 ```
 
-for ((i=1;i<=30;i++)); do curl -s "http://13.91.242.211:8080/" | grep version: ; done
+for ((i=1;i<=30;i++)); do curl -s "http://<loadbalancer ingress ip>/" | grep version: ; done
 ```
 
 Clean up resources in cluster
@@ -123,4 +131,5 @@ Clean up resources in cluster
 kubectl delete -f service.yaml
 kubectl delete -f deployment-canary.yaml
 kubectl delete -f deployment-stable.yaml
+helm delete traefik-hello-kube
 ```
