@@ -1,4 +1,4 @@
-# SOURCE: https://install.portworx.com/?mc=false&kbver=1.12.7&k=etcd%3Ahttp%3A%2F%2Fpx-etcd1.portworx.com%3A2379%2Cetcd%3Ahttp%3A%2F%2Fpx-etcd2.portworx.com%3A2379%2Cetcd%3Ahttp%3A%2F%2Fpx-etcd3.portworx.com%3A2379&s=%2Fdev%2Fsdc1&c=px-cluster-bafd4a89-26b1-454a-870e-cdbafd9346af&aks=true&stork=true&lh=true&st=k8s
+# SOURCE: https://install.portworx.com/?mc=false&kbver=1.12.7&k=etcd%3Ahttp%3A%2F%2F10.240.0.7%3A2379&f=true&j=auto&c=px-cluster-bafd4a89-26b1-454a-870e-cdbafd9346af&aks=true&stork=true&lh=true&st=k8s
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -532,7 +532,7 @@ metadata:
   name: portworx
   namespace: kube-system
   annotations:
-    portworx.com/install-source: "https://install.portworx.com/?mc=false&kbver=1.12.7&k=etcd%3Ahttp%3A%2F%2Fpx-etcd1.portworx.com%3A2379%2Cetcd%3Ahttp%3A%2F%2Fpx-etcd2.portworx.com%3A2379%2Cetcd%3Ahttp%3A%2F%2Fpx-etcd3.portworx.com%3A2379&s=%2Fdev%2Fsdc1&c=px-cluster-bafd4a89-26b1-454a-870e-cdbafd9346af&aks=true&stork=true&lh=true&st=k8s"
+    portworx.com/install-source: "https://install.portworx.com/?mc=false&kbver=1.12.7&k=etcd%3Ahttp%3A%2F%2F10.240.0.7%3A2379&f=true&j=auto&c=px-cluster-bafd4a89-26b1-454a-870e-cdbafd9346af&aks=true&stork=true&lh=true&st=k8s"
 spec:
   minReadySeconds: 0
   updateStrategy:
@@ -562,7 +562,7 @@ spec:
           image: portworx/oci-monitor:2.0.3.4
           imagePullPolicy: Always
           args:
-            ["-k", "etcd:http://px-etcd1.portworx.com:2379,etcd:http://px-etcd2.portworx.com:2379,etcd:http://px-etcd3.portworx.com:2379", "-c", "px-cluster-bafd4a89-26b1-454a-870e-cdbafd9346af", "-s", "/dev/sdc1", "-secret_type", "k8s", 
+            ["-k", "etcd:http://10.240.0.7:2379", "-c", "px-cluster-bafd4a89-26b1-454a-870e-cdbafd9346af", "-A", "-f", "-secret_type", "k8s", "-j", "auto", 
              "-x", "kubernetes"]
           env:
             - name: "AUTO_NODE_RECOVERY_TIMEOUT_IN_SECS"

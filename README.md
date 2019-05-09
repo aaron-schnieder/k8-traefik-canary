@@ -156,15 +156,7 @@ Debugging
 Azure Setup
 - Create SP
 - az ad sp create-for-rbac --skip-assignment
-```
-{
-  "appId": "9ac5c520-4e64-445a-a038-237bb0956696",
-  "displayName": "azure-cli-2019-05-08-03-44-09",
-  "name": "http://azure-cli-2019-05-08-03-44-09",
-  "password": "b772a418-80a3-4579-839d-404d0372a592",
-  "tenant": "72f988bf-86f1-41af-91ab-2d7cd011db47"
-}
-```
+
 - Create resource group
 - az group create -l westus2 -n aaros-aks-portworx
 - Create AKS cluster
@@ -172,33 +164,44 @@ Azure Setup
     --resource-group aaros-aks-portworx \
     --name aarosAksCluster \
     --node-count 3 \
-    --service-principal "9ac5c520-4e64-445a-a038-237bb0956696" \
-    --client-secret "b772a418-80a3-4579-839d-404d0372a592" \
+    --service-principal "" \
+    --client-secret "" \
     --generate-ssh-keys
 - Connect to AKS cluster and get credentials
 - az aks get-credentials --resource-group aaros-aks-portworx --name aarosAksCluster
 - kubectl get nodes
-- Create a static Azure Disk (single Pod access only) in the same resource group as the AKS cluster
-- https://docs.microsoft.com/en-us/azure/aks/azure-disk-volume
-- az disk create \
-  --resource-group aaros-aks-portworx \
-  --name aarosPwDataDisk  \
-  --size-gb 20 \
-  --sku Premium_LRS \
-  --query id --output tsv
-- /subscriptions/2a6b40d9-16cb-4676-8609-d5a1df110803/resourceGroups/aaros-aks-portworx/providers/Microsoft.Compute/disks/aarosPwDataDisk
+#- Create a static Azure Disk (single Pod access only) in the same resource group as the AKS cluster
+#- https://docs.microsoft.com/en-us/azure/aks/azure-disk-volume
+#- az disk create \
+#  --resource-group aaros-aks-portworx \
+#  --name aarosPwDataDisk  \
+#  --size-gb 20 \
+#  --sku Premium_LRS \
+#  --query id --output tsv
+#- /subscriptions/2a6b40d9-16cb-4676-8609-d5a1df110803/resourceGroups/aaros-aks-portworx/providers/Microsoft.Compute/disks/aarosPwDataDisk
 ```
 - Make sure that the appropriate storage class has been deployed to the AKS cluster for your Azure Disk type
 - kubectl get sc
 - *If the storage class does not exist on the AKS cluster*, edit azure-storage-class.yaml and apply the Azure storage class to the AKS cluster
-- kubectl apply -f deployment/azure-storage-class.yaml
+#- kubectl apply -f deployment/azure-storage-class.yaml
 ```
 - Apply the persistent volume claim to the storage class
 - kubectl apply -f deployment/azure-pv-claim.yaml
 - persistentvolumeclaim/azure-managed-disk
+- Get all of the disk IDs in the RG
+- az disk list -g MC_aaros-aks-portworx_aarosAksCluster_westus2 --query '[].id' -o tsv
+- Get all of the VM names in the RG
+- az vm list -g MC_aaros-aks-portworx_aarosAksCluster_westus2 --query '[].name' -o tsv
+- Attach the disks to the VMs
+- https://docs.microsoft.com/en-us/azure/virtual-machines/linux/add-disk
+- az vm disk attach -g myResourceGroup --vm-name myVM --disk $diskId
+- az vm disk attach -g MC_aaros-aks-portworx_aarosAksCluster_westus2 --vm-name aks-nodepool1-17636774-0 --disk /subscriptions/2a6b40d9-16cb-4676-8609-d5a1df110803/resourceGroups/MC_aaros-aks-portworx_aarosAksCluster_westus2/providers/Microsoft.Compute/disks/kubernetes-dynamic-pvc-40515d0e-726d-11e9-9cd9-6e252472102b
+- az vm disk attach -g MC_aaros-aks-portworx_aarosAksCluster_westus2 --vm-name aks-nodepool1-17636774-1 --disk /subscriptions/2a6b40d9-16cb-4676-8609-d5a1df110803/resourceGroups/MC_aaros-aks-portworx_aarosAksCluster_westus2/providers/Microsoft.Compute/disks/kubernetes-dynamic-pvc-602c149f-726d-11e9-9cd9-6e252472102b
+- az vm disk attach -g MC_aaros-aks-portworx_aarosAksCluster_westus2 --vm-name aks-nodepool1-17636774-2 --disk /subscriptions/2a6b40d9-16cb-4676-8609-d5a1df110803/resourceGroups/MC_aaros-aks-portworx_aarosAksCluster_westus2/providers/Microsoft.Compute/disks/kubernetes-dynamic-pvc-603723cd-726d-11e9-9cd9-6e252472102b
 - Get K8s version
 - kubectl version --short | awk -Fv '/Server Version: / {print $3}'
 
+- To ssh into a VM, set the SSH keys, create a jumbox k8s pod, exec into the pod and SSH from there
 https://docs.microsoft.com/en-us/azure/aks/ssh
 az vm user update \
   --resource-group MC_aaros-aks-portworx_aarosAksCluster_westus2 \
@@ -210,19 +213,29 @@ az vm user update \
   apt-get update && apt-get install openssh-client -y
   kubectl get pods
   kubectl cp ~/.ssh/id_rsa aks-ssh-589f4659c5-jdcqr:/id_rsa
+  kubectl exec -it aks-ssh-589f4659c5-jdcqr /bin/bash
   chmod 0600 id_rsa
   ssh -i id_rsa azureuser@10.240.0.4
 
-https://docs.microsoft.com/en-us/azure/virtual-machines/linux/attach-disk-portal?toc=%2Fazure%2Fvirtual-machines%2Flinux%2Ftoc.json
-dmesg | grep SCSI
-sudo fdisk /dev/sdc
-n
-p
-p
-w
-sudo mkfs -t ext4 /dev/sdc1
-sudo mkdir /portworxdrive
-sudo mount /dev/sdc1 /portworxdrive
-sudo -i blkid
-sudo vi /etc/fstab
-UUID=d0bfbc13-b24a-436b-a5f1-b7c91ae885a0   /portworxdrive   ext4   defaults,nofail   1   2
+#https://docs.microsoft.com/en-us/azure/virtual-machines/linux/attach-disk-portal?toc=%2Fazure%2Fvirtual-machines%2Flinux%2Ftoc.json
+#dmesg | grep SCSI
+#sudo fdisk /dev/sdc
+#n
+#p
+#p
+#w
+#sudo mkfs -t ext4 /dev/sdc1
+#sudo mkdir /portworxdrive
+#sudo mount /dev/sdc1 /portworxdrive
+#sudo -i blkid
+#sudo vi /etc/fstab
+#UUID=d0bfbc13-b24a-436b-a5f1-b7c91ae885a0   /portworxdrive   ext4   defaults,nofail   1   2
+
+Bitnami Etcd in Azure
+- 
+- aaros / rsa_key
+- etcd login: root/ivSDiNQCqFe3
+
+- This will get portworx installation status and ACTUAL ERRORS on install!!!!
+PX_POD=$(kubectl get pods -l name=portworx -n kube-system -o jsonpath='{.items[0].metadata.name}')
+  kubectl exec $PX_POD -n kube-system -- /opt/pwx/bin/pxctl status
